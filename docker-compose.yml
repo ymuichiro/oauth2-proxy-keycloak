@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  # https://zenn.dev/emp_tech_blog/articles/996920de0b93b7
+  mysql:
+    image: mysql:8.0.33
+    container_name: mysql
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+    ports:
+      - 3306:3306
+
+  # https://qiita.com/y_inoue15/items/bf7a960f7f7ff64f53e2
+  keycloak:
+    image: quay.io/keycloak/keycloak:20.0.1
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: password
+      PROXY_ADDRESS_FORWARDING: "true"
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://mysql:3306/keycloak
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+    ports:
+      - 8080:8080
+      - 8443:8443
+    entrypoint: ["/opt/keycloak/bin/kc.sh", "start-dev"]
+    depends_on:
+      - mysql
+
+  any:
+    image: kennethreitz/httpbin:latest
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.4.0
+    ports:
+      - 80:4180
+    environment:
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_CLIENT_ID: demo
+      OAUTH2_PROXY_CLIENT_SECRET: 1W2wKiOtgdujuEo7UpV48B0y0mDgHfHS
+      OAUTH2_PROXY_REDIRECT_URL: http://localhost/oauth2/callback
+      OAUTH2_PROXY_OIDC_ISSUER_URL: http://keycloak:8080/realms/demo
+      OAUTH2_PROXY_COOKIE_SECRET: "01234567890123456789012345678901"
+      OAUTH2_PROXY_COOKIE_SECURE: "false"
+      OAUTH2_PROXY_COOKIE_NAME: "demo_cookie"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_UPSTREAMS: http://any/
+      OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER: "true"
